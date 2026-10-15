@@ -1,0 +1,24 @@
+# ─── Java / Maven ───
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+
+# ─── IDE ───
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# ─── Entorno / secretos (NUNCA subir credenciales) ───
+.env
+.env.local
+application-local.yml
+*.log
+
+# ─── SO ───
+.DS_Store
+Thumbs.db

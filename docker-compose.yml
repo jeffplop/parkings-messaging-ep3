@@ -1,0 +1,13 @@
+# Levanta RabbitMQ localmente para probar la mensajería.
+#   docker compose up -d
+#   Panel de administración: http://localhost:15672  (usuario/clave: guest/guest)
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: parkings-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP (lo usa Spring)
+      - "15672:15672"   # UI de administración
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest

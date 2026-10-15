@@ -1,0 +1,82 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: parkings-messaging
+
+  # --- Conexión a RabbitMQ (CloudAMQP u otro broker cloud) ---
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        # ACK manual (rúbrica): el consumidor confirma (ACK) o rechaza (NACK/DLQ)
+        # explícitamente. Ver RabbitListenerConfig.
+        acknowledge-mode: manual
+        prefetch: 10
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Topología de mensajería CENTRALIZADA (rúbrica indicador 1).
+# Ningún nombre de cola, exchange, binding o routing-key se escribe suelto en el
+# código: todos se leen desde aquí a través de RabbitProperties.
+# ─────────────────────────────────────────────────────────────────────────────
+parkings:
+  rabbit:
+    exchange: parkings.exchange              # exchange de trabajo (topic, asíncrono dirigido)
+    dead-letter-exchange: parkings.dlx       # exchange de mensajes muertos (DLX)
+    fanout-exchange: parkings.broadcast      # exchange de difusión (Publish/Subscribe)
+
+    # Mensajería SÍNCRONA (RPC request/reply): cotizar una reserva y esperar respuesta.
+    rpc:
+      exchange: parkings.rpc
+      routing-key: rpc.cotizar
+      queue: parkings.rpc.cotizar.q
+
+    # Suscriptores del fanout (Publish/Subscribe): cada cola recibe una copia del evento.
+    broadcast:
+      email-queue: parkings.broadcast.email.q
+      analytics-queue: parkings.broadcast.analytics.q
+
+    # Políticas de retención aplicadas a las DLQ (x-message-ttl / x-max-length).
+    retention:
+      dlq-ttl-ms: 604800000                  # 7 días: un mensaje muerto se descarta pasado este tiempo
+      dlq-max-length: 10000                  # tope de mensajes muertos retenidos por DLQ
+
+    domains:
+      notifications:
+        queue: parkings.notifications.q
+        dlq: parkings.notifications.dlq
+        routing-key: notification.created
+        dlq-routing-key: dlq.notification
+      tickets:
+        queue: parkings.tickets.q
+        dlq: parkings.tickets.dlq
+        routing-key: ticket.generate
+        dlq-routing-key: dlq.ticket
+      documents:
+        queue: parkings.documents.q
+        dlq: parkings.documents.dlq
+        routing-key: document.generate
+        dlq-routing-key: dlq.document
+
+logging:
+  level:
+    cl.duoc.parkings.messaging: INFO
+
+---
+# Config del IDaaS SOLO fuera del perfil "local" (en local se demuestra sin IDaaS).
+spring:
+  config:
+    activate:
+      on-profile: "!local"
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Apunta al IDaaS (Keycloak / Auth0 / Azure AD / Cognito...).
+          issuer-uri: ${IDAAS_ISSUER_URI:https://idaas.example.com/realms/parkings}
+          jwk-set-uri: ${IDAAS_JWK_SET_URI:https://idaas.example.com/realms/parkings/protocol/openid-connect/certs}
